@@ -32,18 +32,17 @@ class Blockchain:
 
     def proof_of_work(self, last_block):
         """工作量证明：寻找满足难度要求的证明值"""
-        last_proof = last_block['proof']
         last_hash = self.hash_block(last_block)
 
         proof = 0
-        while not self.valid_proof(last_proof, proof, last_hash):
+        while not self.valid_proof(proof, last_hash):
             proof += 1
 
         return proof
 
-    def valid_proof(self, last_proof, proof, last_hash):
+    def valid_proof(self, proof, last_hash):
         """验证工作量证明是否有效"""
-        guess = f'{last_proof}{proof}{last_hash}'.encode()
+        guess = f'{proof}{last_hash}'.encode()
         guess_hash = hashlib.sha256(guess).hexdigest()
         return guess_hash[:4] == '0000'
 
@@ -66,7 +65,7 @@ class Blockchain:
         # 为矿工添加奖励交易
         miner_reward = {
             'sender': '0',  # 系统奖励
-            'recipient': str(uuid.uuid4()),
+            'recipient': str(uuid.uuid4()), # 模拟接收奖励的矿工地址
             'amount': 1,
             'timestamp': int(time.time())
         }
@@ -100,16 +99,3 @@ class Blockchain:
                 return False
 
         return True
-
-    def resolve_conflicts(self, other_chains):
-        """解决区块链冲突，采用最长链原则"""
-        max_length = len(self.chain)
-        longest_chain = self.chain
-
-        for chain in other_chains:
-            if len(chain) > max_length and self.validate_chain(chain):
-                max_length = len(chain)
-                longest_chain = chain
-
-        self.chain = longest_chain
-        return self.chain 

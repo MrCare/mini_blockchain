@@ -18,6 +18,14 @@ class BlockchainNode:
         def mine_block():
             """挖掘新区块"""
             block = self.blockchain.mine_block()
+            
+            # 广播新区块到所有已注册节点
+            for node in self.blockchain.nodes:
+                try:
+                    requests.post(f'{node}/block/receive', json=block)
+                except requests.exceptions.RequestException:
+                    print(f"无法向节点 {node} 广播区块")
+            
             response = {
                 'message': '新区块已挖掘',
                 'block': block
@@ -81,6 +89,49 @@ class BlockchainNode:
                     'chain': self.blockchain.chain
                 }
             return jsonify(response), 200
+
+        @self.app.route('/block/receive', methods=['POST'])
+        def receive_new_block():
+            """接收并验证新区块"""
+            new_block = request.get_json()
+            
+            # 验证新区块的合法性
+            last_block = self.blockchain.chain[-1]
+            
+            # 验证 previous_hash 是否正确
+            if new_block['previous_hash'] != self.blockchain.hash_block(last_block):
+                return jsonify({'message': '区块验证失败：前一区块哈希不匹配'}), 400
+            
+            # 验证工作量证明
+            if not self.blockchain.valid_proof(new_block['proof'], new_block['previous_hash']):
+                return jsonify({'message': '区块验证失败：工作量证明无效'}), 400
+            
+            
+            # 添加新区块到本地链
+            self.blockchain.chain.append(new_block)
+            
+            return jsonify({
+                'message': '新区块已成功接收和验证',
+                'block_index': new_block['index']
+            }), 200
+
+        @self.app.route('/block/broadcast', methods=['POST'])
+        def broadcast_new_block():
+            """广播新挖掘的区块到所有已知节点"""
+            new_block = request.get_json()
+            
+            # 遍历所有已注册节点
+            for node in self.blockchain.nodes:
+                try:
+                    # 向每个节点发送新区块
+                    response = requests.post(f'{node}/block/receive', json=new_block)
+                    if response.status_code != 200:
+                        print(f"向节点 {node} 广播区块失败")
+                except requests.exceptions.RequestException as e:
+                    print(f"广播区块时发生错误：{e}")
+            
+            return jsonify({'message': '区块广播完成'}), 200
+
 
     def resolve_conflicts(self):
         """解决节点间的区块链冲突"""

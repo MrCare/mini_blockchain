@@ -3,124 +3,210 @@
 ## 项目简介
 这是一个基于Python的简化区块链系统，实现了工作量证明（PoW）共识机制、区块链接、网络广播与验证功能。
 
-## 核心功能
-- 工作量证明（PoW）机制
-- 区块链结构
-- 网络通信与广播
-- 交易创建与验证
-
-## 技术栈
-- Python
-- Flask
-- Requests
-- SHA-256哈希算法
-
 ## 安装依赖
 ```bash
 pip install -r requirements.txt
 ```
 
-## 运行节点
+## 演示区块链工作流程
+
+### 场景：多节点交易与区块同步
+
+#### 准备工作
+1. 启动多个节点
 ```bash
-# 启动多个节点
-chmod +x start_nodes.sh
-./start_nodes.sh
+# 启动3个节点
+python3 src/node.py 5000 &
+python3 src/node.py 5001 &
+python3 src/node.py 5002 &
 ```
 
-## 测试区块链功能
-1. 创建交易
+#### 步骤详解
+
+1. **注册节点**
 ```bash
+# 在节点间建立连接
+curl -X POST http://localhost:5000/nodes/register -H "Content-Type: application/json" -d '{"nodes":["http://localhost:5001", "http://localhost:5002"]}'
+curl -X POST http://localhost:5001/nodes/register -H "Content-Type: application/json" -d '{"nodes":["http://localhost:5000", "http://localhost:5002"]}'
+curl -X POST http://localhost:5002/nodes/register -H "Content-Type: application/json" -d '{"nodes":["http://localhost:5000", "http://localhost:5001"]}'
+```
+
+2. **创建交易**
+```bash
+# 在5000端口节点创建交易
 curl -X POST http://localhost:5000/transactions/new -H "Content-Type: application/json" -d '{"sender":"Alice", "recipient":"Bob", "amount":50}'
+curl -X POST http://localhost:5000/transactions/new -H "Content-Type: application/json" -d '{"sender":"Charlie", "recipient":"David", "amount":25}'
 ```
 
-2. 挖掘区块
+3. **挖掘区块**
 ```bash
+# 在5000端口节点挖掘区块
 curl http://localhost:5000/mine
 ```
 
-3. 查看区块链
+4. **验证区块同步**
 ```bash
-curl http://localhost:5000/chain
+# 检查其他节点的区块链状态
+curl http://localhost:5001/chain
+curl http://localhost:5002/chain
+```
+
+<!-- 5. **解决冲突**
+```bash
+# 如果节点间出现分歧，可以触发共识机制
+curl http://localhost:5001/nodes/resolve
+curl http://localhost:5002/nodes/resolve --> # 目前不存在冲突
+```
+
+或使用验证脚本：
+```
+chmod +x ./show.sh
+./show.sh
+```
+
+### 预期输出
+- 5000端口节点成功打包交易
+- 5001和5002节点通过网络同步获得相同的区块链状态
+- 交易被成功广播和确认
+- 输出日志如下:
+
+```
+(base) ➜  mini_blockchain git:(main) ✗ ./show.sh
+[2/6] 启动3个区块链节点...
+ * Serving Flask app "node" (lazy loading)
+ * Serving Flask app "node" (lazy loading)
+ * Environment: production
+ * Environment: production
+   WARNING: This is a development server. Do not use it in a production deployment.
+   WARNING: This is a development server. Do not use it in a production deployment.
+   Use a production WSGI server instead.
+   Use a production WSGI server instead.
+ * Debug mode: off
+ * Debug mode: off
+ * Serving Flask app "node" (lazy loading)
+ * Environment: production
+   WARNING: This is a development server. Do not use it in a production deployment.
+   Use a production WSGI server instead.
+ * Debug mode: off
+ * Running on http://localhost:5000/ (Press CTRL+C to quit)
+ * Running on http://localhost:5001/ (Press CTRL+C to quit)
+ * Running on http://localhost:5002/ (Press CTRL+C to quit)
+[3/6] 注册节点间连接...
+127.0.0.1 - - [09/Jul/2025 00:30:41] "POST /nodes/register HTTP/1.1" 201 -
+127.0.0.1 - - [09/Jul/2025 00:30:41] "POST /nodes/register HTTP/1.1" 201 -
+127.0.0.1 - - [09/Jul/2025 00:30:41] "POST /nodes/register HTTP/1.1" 201 -
+[4/6] 创建交易...
+127.0.0.1 - - [09/Jul/2025 00:30:41] "POST /transactions/new HTTP/1.1" 201 -
+[5/6] 挖掘区块...
+127.0.0.1 - - [09/Jul/2025 00:30:41] "POST /block/receive HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2025 00:30:41] "POST /block/receive HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2025 00:30:41] "GET /mine HTTP/1.1" 200 -
+{"block":{"index":2,"previous_hash":"ba1f92e95117569d603997dba73c121d628d353dca7f8192560ca73a0d475768","proof":117551,"timestamp":1751992241,"transactions":[{"amount":50,"recipient":"Bob","sender":"Alice","timestamp":1751992241},{"amount":1,"recipient":"ec9faa9f-78bc-4274-846f-e50d87b09f81","sender":"0","timestamp":1751992241}]},"message":"\u65b0\u533a\u5757\u5df2\u6316\u6398"}
+[6/6] 验证区块链状态...
+节点5000的区块链:
+127.0.0.1 - - [09/Jul/2025 00:30:41] "GET /chain HTTP/1.1" 200 -
+{
+  "chain": [
+    {
+      "index": 1,
+      "previous_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "proof": 1,
+      "timestamp": 1751992238,
+      "transactions": []
+    },
+    {
+      "index": 2,
+      "previous_hash": "ba1f92e95117569d603997dba73c121d628d353dca7f8192560ca73a0d475768",
+      "proof": 117551,
+      "timestamp": 1751992241,
+      "transactions": [
+        {
+          "amount": 50,
+          "recipient": "Bob",
+          "sender": "Alice",
+          "timestamp": 1751992241
+        },
+        {
+          "amount": 1,
+          "recipient": "ec9faa9f-78bc-4274-846f-e50d87b09f81",
+          "sender": "0",
+          "timestamp": 1751992241
+        }
+      ]
+    }
+  ],
+  "length": 2
+}
+节点5001的区块链:
+127.0.0.1 - - [09/Jul/2025 00:30:41] "GET /chain HTTP/1.1" 200 -
+{
+  "chain": [
+    {
+      "index": 1,
+      "previous_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "proof": 1,
+      "timestamp": 1751992238,
+      "transactions": []
+    },
+    {
+      "index": 2,
+      "previous_hash": "ba1f92e95117569d603997dba73c121d628d353dca7f8192560ca73a0d475768",
+      "proof": 117551,
+      "timestamp": 1751992241,
+      "transactions": [
+        {
+          "amount": 50,
+          "recipient": "Bob",
+          "sender": "Alice",
+          "timestamp": 1751992241
+        },
+        {
+          "amount": 1,
+          "recipient": "ec9faa9f-78bc-4274-846f-e50d87b09f81",
+          "sender": "0",
+          "timestamp": 1751992241
+        }
+      ]
+    }
+  ],
+  "length": 2
+}
+节点5002的区块链:
+127.0.0.1 - - [09/Jul/2025 00:30:41] "GET /chain HTTP/1.1" 200 -
+{
+  "chain": [
+    {
+      "index": 1,
+      "previous_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "proof": 1,
+      "timestamp": 1751992238,
+      "transactions": []
+    },
+    {
+      "index": 2,
+      "previous_hash": "ba1f92e95117569d603997dba73c121d628d353dca7f8192560ca73a0d475768",
+      "proof": 117551,
+      "timestamp": 1751992241,
+      "transactions": [
+        {
+          "amount": 50,
+          "recipient": "Bob",
+          "sender": "Alice",
+          "timestamp": 1751992241
+        },
+        {
+          "amount": 1,
+          "recipient": "ec9faa9f-78bc-4274-846f-e50d87b09f81",
+          "sender": "0",
+          "timestamp": 1751992241
+        }
+      ]
+    }
+  ],
+  "length": 2
+}
+已经将新区块打包并广播验证完成出块
 ```
 
 ## 许可证
 MIT License 
-
-### 提示词
-
-```
-### 编程提示词：去中心化区块链系统设计与实现
-
-**目标**：  
-设计并实现一个简化版的区块链系统，支持工作量证明（PoW）共识机制、区块链接、网络广播与验证功能，并提供可视化演示。
-
-
-#### **核心功能要求**
-1. **工作量证明（PoW）机制**  
-   - 实现基于SHA-256的PoW算法，难度目标为哈希值前4位为0（即`0000`开头）。
-   - 设计区块结构体，包含以下字段：  
-     ```python
-     block = {
-         'index': 区块编号,
-         'timestamp': 时间戳,
-         'transactions': [交易列表],
-         'proof': 工作量证明值,
-         'previous_hash': 前一区块哈希
-     }
-     ```
-   - 实现`mine()`函数，计算符合难度要求的证明值。
-
-2. **区块链结构**  
-   - 使用链表或数组存储区块，确保每个区块的`previous_hash`正确指向父区块。
-   - 实现创世区块（Genesis Block）的初始化逻辑。
-
-3. **网络通信与广播**  
-   - 设计点对点（P2P）网络协议，支持节点发现与连接。
-   - 实现区块广播机制：当新块被挖出时，立即向全网广播。
-   - 设计交易池（Transaction Pool），存储待确认的交易。
-
-4. **验证机制**  
-   - 实现区块验证函数，确保：  
-     - 区块结构完整
-     - 哈希值符合难度要求
-     - `previous_hash`与父区块实际哈希一致
-     - 交易合法性验证
-
-5. **演示案例**  
-   - 设计可视化界面或CLI工具，展示至少3个节点的网络。
-   - 演示交易创建、区块挖矿、广播验证的完整流程。
-
-
-#### **技术建议**
-1. **编程语言选择**  
-   - Python（简洁易实现，推荐使用Flask搭建HTTP API）
-
-2. **网络层实现**  
-   - 使用HTTP API实现节点间通信。
-   - 建议采用JSON格式传输区块和交易数据。
-
-3. **共识机制**  
-   - 简化版PoW：无需考虑难度动态调整，固定前4位为0。
-
-4. **数据存储**  
-   - 可暂用内存存储区块链
-
-
-#### **关键实现点**
-1. **哈希计算**  
-   - 使用SHA-256对区块头（index + timestamp + transactions + proof + previous_hash）进行哈希。
-
-2. **工作量证明**  
-   - 实现`valid_proof()`函数，验证哈希值是否满足难度要求。
-   - 实现`proof_of_work()`函数，通过递增`proof`值找到有效解。
-
-3. **网络同步**  
-   - 当节点收到新区块时，验证其合法性并更新本地链。
-   - 实现最长链原则：当出现分叉时，选择最长有效链。
-
-
-#### **测试与验证**
-1. 使用代码演示节点连接与pow和广播出块过程
-
-通过以上设计，你将实现一个完整的、支持网络广播的区块链原型系统，清晰展示PoW共识机制的核心原理和区块链接的工作方式。
-```
