@@ -55,8 +55,9 @@ curl http://localhost:5002/chain
 ```bash
 # 如果节点间出现分歧，可以触发共识机制
 curl http://localhost:5001/nodes/resolve
-curl http://localhost:5002/nodes/resolve # 目前不存在冲突--> 
+curl http://localhost:5002/nodes/resolve # 目前不存在冲突 
 ```
+-->
 
 或使用验证脚本：
 ```
